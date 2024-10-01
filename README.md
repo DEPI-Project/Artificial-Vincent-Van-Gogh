@@ -12,5 +12,3 @@
 ### Saving Augmented Images
 ### Executing Functions
 ### Printing Results
-#### and this is the Real data zip file [https://drive.google.com/file/d/15vTWqR48pbJ68B0IVCJp7krG0aSIKYx_/view?usp=sharing](https://drive.google.com/drive/folders/1o29jpL9zR7lxU3FLnXd5CZRbNhX39iqz?usp=sharing)
-#### and the final real data called : augmented_images
