@@ -6,9 +6,12 @@
 ### Steps :
 ### Importing Required Libraries
 ### Unzipping the File
-### Processing and Augmenting Data
-### Processing Images
-### Generating Images
-### Saving Augmented Images
-### Executing Functions
-### Printing Results
+### Analyze and resize the images based on the average size of the entire dataset.
+### Each image will be augmented to generate four additional images.
+
+
+
+
+
+
+ 
