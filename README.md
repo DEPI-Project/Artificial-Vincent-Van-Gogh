@@ -5,9 +5,7 @@
 ## First : Data 
 ### Steps :
 ### Importing Required Libraries
-### Unzipping the File
-### Analyze and resize the images based on the average size of the entire dataset.
-### Each image will be augmented to generate four additional images.
+### Analyze , resize the images based on the average size of the entire dataset and normalize them.
 
 
 
