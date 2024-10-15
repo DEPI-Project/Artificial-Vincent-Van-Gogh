@@ -55,9 +55,9 @@ app = Dash()
 
 # Generator Builder (You need to implement your generator structure here)
 def generator_builder():
-    # Example generator model, modify as per your architecture
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(256, input_shape=(100,)),
+        tf.keras.layers.Input(shape=(100,)),  # Specify input shape here
+        tf.keras.layers.Dense(256),
         tf.keras.layers.LeakyReLU(),
         tf.keras.layers.Dense(512),
         tf.keras.layers.LeakyReLU(),
@@ -65,6 +65,7 @@ def generator_builder():
         tf.keras.layers.Reshape((28, 28, 3))
     ])
     return model
+
 
 # Load the generator model
 generator, latest_epoch = load_generator(generator_builder)
