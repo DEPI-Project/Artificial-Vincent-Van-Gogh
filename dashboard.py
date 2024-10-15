@@ -1,150 +1,140 @@
-from dash import html, dcc
+import os
+import tensorflow as tf
+from dash import Dash, html, dcc
 from dash.dependencies import Input, Output, State
-from dash import Dash
+import base64
+from io import BytesIO
+from PIL import Image
 
-# إنشاء التطبيق
+# Load the generator model
+def load_generator(generator_builder, checkpoint_dir='checkpoints'):
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+        return None, 0  # No checkpoints, start from epoch 0
+
+    checkpoint_files = os.listdir(checkpoint_dir)
+    generator_files = [f for f in checkpoint_files if f.startswith('generator_epoch_') and f.endswith('.h5')]
+
+    if not generator_files:
+        return None, 0
+
+    epochs = [int(f.split('_epoch_')[1].split('.h5')[0]) for f in generator_files]
+    latest_epoch = max(epochs)
+
+    generator = generator_builder()
+    generator.load_weights(os.path.join(checkpoint_dir, f'generator_epoch_{latest_epoch}.h5'))
+
+    print(f"Loaded generator model from epoch {latest_epoch}")
+
+    return generator, latest_epoch
+
+# Function to generate images using the generator model
+def generate_image(generator):
+    # Generate a random noise vector
+    noise = tf.random.normal([1, 100])  # Adjust the noise dimension as per your model's input
+    generated_image = generator(noise, training=False)
+    
+    # Post-process the generated image (e.g., scale back to [0, 255])
+    generated_image = (generated_image * 127.5 + 127.5).numpy().astype('uint8')  # Example post-processing
+    
+    return generated_image
+
+# Convert the generated image to base64 format to display in Dash
+def convert_image_to_base64(image):
+    # Convert the image (NumPy array) to an image file object
+    img = Image.fromarray(image[0])  # Assuming image is in [batch_size, width, height, channels] format
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+    img_base64 = base64.b64encode(buffer.read()).decode()
+    
+    return f"data:image/png;base64,{img_base64}"
+
+# Create the Dash app
 app = Dash()
 
-# تصميم واجهة المستخدم مع تحسينات
+# Generator Builder (You need to implement your generator structure here)
+def generator_builder():
+    # Example generator model, modify as per your architecture
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(256, input_shape=(100,)),
+        tf.keras.layers.LeakyReLU(),
+        tf.keras.layers.Dense(512),
+        tf.keras.layers.LeakyReLU(),
+        tf.keras.layers.Dense(28 * 28 * 3, activation='tanh'),
+        tf.keras.layers.Reshape((28, 28, 3))
+    ])
+    return model
+
+# Load the generator model
+generator, latest_epoch = load_generator(generator_builder)
+
+# Design the layout of the app
 app.layout = html.Div(id='page-content', style={
-    'padding': '10px',  # تقليل الحواف
-    'height': '100vh',  # استخدام ارتفاع الشاشة بالكامل
-    'display': 'flex', 
+    'padding': '10px',
+    'height': '100vh',
+    'display': 'flex',
     'flexDirection': 'column',
-    'justifyContent': 'space-evenly',  # توزيع المحتوى عمودياً بالتساوي
-    'alignItems': 'center',  # تمركز المحتوى أفقياً
+    'justifyContent': 'space-evenly',
+    'alignItems': 'center',
     'backgroundColor': '#f8f9fa'
 }, children=[
-    # العنوان
+    # Title
     html.H1("Artificial Vincent Van Gogh", id='title', style={
-        'textAlign': 'center', 
-        'fontFamily': 'Arial', 
-        'color': '#343a40',  
-        'fontSize': '28px',  # تقليل حجم النص
-        'marginBottom': '10px'  # تقليل المسافة السفلية
+        'textAlign': 'center',
+        'fontFamily': 'Arial',
+        'color': '#343a40',
+        'fontSize': '28px',
+        'marginBottom': '10px'
     }),
 
-    # مكان عرض الصور
+    # Place to display the generated image
     html.Div(id='output-images', children=[
-        html.Div([
-            html.Img(src='placeholder.jpg', style={
-                'width': '90%',  # تقليل عرض الصورة لتناسب الشاشة
-                'maxWidth': '400px',  # أقصى عرض للصورة
-                'padding': '5px',  # تقليل التباعد
-                'border': '2px solid #343a40', 
-                'borderRadius': '8px'
-            }),
-            html.A("Download Image", href='placeholder.jpg', download='vincent_image1.jpg', style={
-                'display': 'block', 
-                'textAlign': 'center', 
-                'marginTop': '5px', 
-                'color': '#007bff',
-                'textDecoration': 'none',
-                'fontFamily': 'Arial',
-                'fontSize': '14px'
-            })
-        ], style={'textAlign': 'center'}),
-
-        html.Div([
-            html.Img(src='placeholder.jpg', style={
-                'width': '90%',  
-                'maxWidth': '400px',  # أقصى عرض للصورة
-                'padding': '5px',  
-                'border': '2px solid #343a40', 
-                'borderRadius': '8px'
-            }),
-            html.A("Download Image", href='placeholder.jpg', download='vincent_image2.jpg', style={
-                'display': 'block', 
-                'textAlign': 'center', 
-                'marginTop': '5px', 
-                'color': '#007bff',
-                'textDecoration': 'none',
-                'fontFamily': 'Arial',
-                'fontSize': '14px'
-            })
-        ], style={'textAlign': 'center'}),
+        html.Div(id='image-container', children=[], style={'textAlign': 'center'})
     ], style={
-        'display': 'flex',  
-        'justifyContent': 'space-around',  # توزيع الصور بالتساوي
-        'alignItems': 'center',  # محاذاة العناصر عمودياً في المركز
-        'width': '100%',  # جعل العرض كاملاً ليتناسب مع الشاشة
-    }),
-
-    # وصف بسيط عن AI
-    html.P("Generate beautiful paintings in the style of Vincent van Gogh using AI.", id='description', style={
-        'textAlign': 'center', 
-        'color': '#343a40',  
-        'fontFamily': 'Arial', 
-        'fontSize': '16px',  
-        'margin': '10px 0'  # تعديل الهوامش لتقليل المساحة المستخدمة
-    }),
-
-    # الأزرار
-    html.Div(children=[
-        html.Button('🎨 Generate Images', id='generate-btn', style={
-            'fontSize': '16px',  # حجم خط متوسط للأزرار
-            'padding': '10px 20px',  # تعديل الحواف الداخلية
-            'border': 'none', 
-            'borderRadius': '20px',  
-            'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',  
-            'color': 'white',
-            'cursor': 'pointer',
-            'marginRight': '10px',  # المسافة بين الأزرار
-            'transition': '0.3s',  
-            'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)'
-        }),
-
-        html.Button('💡 Toggle Light/Dark Mode', id='toggle-mode-btn', style={
-            'fontSize': '16px',  
-            'padding': '10px 20px',  
-            'border': 'none', 
-            'borderRadius': '20px',  
-            'background': 'linear-gradient(135deg, #ff758c, #ff7eb3)',  
-            'color': 'white',
-            'cursor': 'pointer',
-            'transition': '0.3s',  
-            'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)'
-        })
-    ], style={
-        'display': 'flex', 
-        'justifyContent': 'center', 
+        'display': 'flex',
+        'justifyContent': 'space-around',
         'alignItems': 'center',
-        'paddingBottom': '10px'
+        'width': '100%'
+    }),
+
+    # Generate button
+    html.Button('🎨 Generate Image', id='generate-btn', style={
+        'fontSize': '16px',
+        'padding': '10px 20px',
+        'border': 'none',
+        'borderRadius': '20px',
+        'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
+        'color': 'white',
+        'cursor': 'pointer',
+        'transition': '0.3s',
+        'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)'
     })
 ])
 
-# وظيفة الاستجابة لتبديل الإضاءة
+# Callback to generate and display image on button click
 @app.callback(
-    [Output('page-content', 'style'),
-     Output('title', 'style'),
-     Output('generate-btn', 'style'),
-     Output('toggle-mode-btn', 'style'),
-     Output('description', 'style')],  
-    [Input('toggle-mode-btn', 'n_clicks')],
-    [State('page-content', 'style'),
-     State('title', 'style'),
-     State('generate-btn', 'style'),
-     State('toggle-mode-btn', 'style'),
-     State('description', 'style')]  
+    Output('image-container', 'children'),
+    [Input('generate-btn', 'n_clicks')],
+    [State('image-container', 'children')]  # We don't need any state, but we can use this to track updates
 )
-def toggle_mode(n_clicks, page_style, title_style, generate_btn_style, toggle_btn_style, description_style):
-    if n_clicks and n_clicks % 2 == 1:
-        # الوضع الداكن
-        page_style['backgroundColor'] = '#343a40'
-        title_style['color'] = '#f8f9fa'
-        generate_btn_style['background'] = 'linear-gradient(135deg, #495057, #6c757d)'  
-        toggle_btn_style['background'] = 'linear-gradient(135deg, #495057, #6c757d)'  
-        description_style['color'] = '#f8f9fa'  
-    else:
-        # الوضع الفاتح
-        page_style['backgroundColor'] = '#f8f9fa'
-        title_style['color'] = '#343a40'
-        generate_btn_style['background'] = 'linear-gradient(135deg, #6a11cb, #2575fc)'  
-        toggle_btn_style['background'] = 'linear-gradient(135deg, #ff758c, #ff7eb3)'  
-        description_style['color'] = '#343a40'  
-    
-    return page_style, title_style, generate_btn_style, toggle_btn_style, description_style
+def update_output(n_clicks, children):
+    if n_clicks:
+        # Generate the image
+        image = generate_image(generator)
+        # Convert the image to base64
+        image_src = convert_image_to_base64(image)
+        
+        # Return the new image element
+        return html.Img(src=image_src, style={
+            'width': '90%',
+            'maxWidth': '400px',
+            'padding': '5px',
+            'border': '2px solid #343a40',
+            'borderRadius': '8px'
+        })
+    return children
 
-# تشغيل التطبيق
+# Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
