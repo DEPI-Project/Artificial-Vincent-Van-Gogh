@@ -5,8 +5,21 @@ from dash.dependencies import Input, Output, State
 import base64
 from io import BytesIO
 from PIL import Image
+from keras import layers
 
 # Load the generator model
+def residual_block(input_tensor, filters, kernel_size=3, strides=1):
+    x = layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(input_tensor)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    
+    x = layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    
+    # Add the input to the output (skip connection)
+    x = layers.Add()([x, input_tensor])
+    x = layers.ReLU()(x)
+    return x
 def load_generator(generator_builder, checkpoint_dir='checkpoints'):
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -55,6 +68,7 @@ app = Dash()
 
 # Generator Builder (You need to implement your generator structure here)
 def generator_builder():
+<<<<<<< HEAD
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=(100,)),  # Specify input shape here
         tf.keras.layers.Dense(256),
@@ -64,6 +78,39 @@ def generator_builder():
         tf.keras.layers.Dense(28 * 28 * 3, activation='tanh'),
         tf.keras.layers.Reshape((28, 28, 3))
     ])
+=======
+    # Example generator model, modify as per your architecture
+    noise = layers.Input(shape=(100,))
+    x = layers.Dense(512 * 4 * 4)(noise)
+    x = layers.Reshape((4, 4, 512))(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+
+    # Add residual blocks here
+    x = residual_block(x, filters=512)
+    x = residual_block(x, filters=512)
+
+    x = layers.Conv2DTranspose(256, kernel_size=5, strides=2, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+
+    # More residual blocks after upsampling
+    x = residual_block(x, filters=256)
+
+    x = layers.Conv2DTranspose(128, kernel_size=5, strides=2, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+
+    x = layers.Conv2DTranspose(64, kernel_size=5, strides=2, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+
+    # Output layer: ensure output size is 64x64
+    output_image = layers.Conv2DTranspose(3, kernel_size=5, strides=2, padding='same', activation='tanh')(x)
+
+    model = tf.keras.Model(inputs=noise, outputs=output_image)
+    
+>>>>>>> d4a30785f214853f3f0aa9d227bc96d8462e07b2
     return model
 
 
