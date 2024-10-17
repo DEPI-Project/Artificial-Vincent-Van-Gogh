@@ -6,6 +6,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 from keras import layers
+import numpy as np
 
 # Load the generator model
 def residual_block(input_tensor, filters, kernel_size=3, strides=1):
@@ -24,7 +25,7 @@ def residual_block(input_tensor, filters, kernel_size=3, strides=1):
 def load_generator(generator_builder, checkpoint_dir='checkpoints'):
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
-        return None, 0  # No checkpoints, start from epoch 0
+        return None, 0
 
     checkpoint_files = os.listdir(checkpoint_dir)
     generator_files = [f for f in checkpoint_files if f.startswith('generator_epoch_') and f.endswith('.h5')]
@@ -42,7 +43,15 @@ def load_generator(generator_builder, checkpoint_dir='checkpoints'):
 
     return generator, latest_epoch
 
+<<<<<<< HEAD
 def generate_image(generator):
+=======
+
+
+def generate_image(generator, seed=None):
+    if seed is not None:
+        tf.random.set_seed(seed)
+>>>>>>> e13f104d4d640054a2f95ceea8959359fa9b47e4
     noise = tf.random.normal([1, 100])
     generated_image = generator(noise, training=False)
     generated_image = (generated_image * 127.5 + 127.5).numpy().astype('uint8')
@@ -56,7 +65,11 @@ def convert_image_to_base64(image):
     img_base64 = base64.b64encode(buffer.read()).decode()
     return f"data:image/png;base64,{img_base64}"
 
+<<<<<<< HEAD
 app = Dash()
+=======
+app = Dash(__name__)
+>>>>>>> e13f104d4d640054a2f95ceea8959359fa9b47e4
 
 def generator_builder():
     noise = layers.Input(shape=(100,))
@@ -83,12 +96,12 @@ def generator_builder():
     x = layers.ReLU()(x)
 
     output_image = layers.Conv2DTranspose(3, kernel_size=5, strides=2, padding='same', activation='tanh')(x)
-
     model = tf.keras.Model(inputs=noise, outputs=output_image)
     return model
 
 generator, latest_epoch = load_generator(generator_builder)
 
+<<<<<<< HEAD
 # Design the layout of the app
 app.layout = html.Div(id='page-content', style={'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center'}, children=[
     # Title
@@ -219,6 +232,88 @@ def generate_image_callback(n_clicks, uploaded_image):
     img_base64 = convert_image_to_base64(generated_image)
 
     return [html.Img(src=img_base64, style={'width': '150px', 'border': '2px solid #343a40', 'borderRadius': '8px'})], False
+=======
+app.layout = html.Div(
+    style={
+        'display': 'flex',
+        'flexDirection': 'column',
+        'justifyContent': 'center',
+        'alignItems': 'center',
+        'height': '100vh',
+        'background': '#f0f4f8',
+        'padding': '20px',
+        'textAlign': 'center'
+    },
+    children=[
+        html.H1(
+            "AI Art Generator",
+            style={
+                'color': '#2c3e50',
+                'fontFamily': 'Arial, sans-serif',
+                'fontSize': '36px',
+                'marginBottom': '20px'
+            }
+        ),
+        html.Div(
+            id='output-images',
+            children=[
+                html.Div(
+                    id='image-container',
+                    style={'marginBottom': '20px'}
+                )
+            ],
+            style={
+                'display': 'flex',
+                'justifyContent': 'center',
+                'alignItems': 'center',
+                'width': '100%'
+            }
+        ),
+        html.Button(
+            '🎨 Generate Image',
+            id='generate-btn',
+            style={
+                'fontSize': '18px',
+                'padding': '12px 24px',
+                'border': 'none',
+                'borderRadius': '30px',
+                'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
+                'color': 'white',
+                'cursor': 'pointer',
+                'transition': '0.3s ease',
+                'boxShadow': '0 4px 12px rgba(0, 0, 0, 0.15)',
+            },
+            n_clicks=0
+        ),
+        dcc.Loading(
+            id="loading-icon",
+            type="circle",
+            children=html.Div(id="loading-output")
+        )
+    ]
+)
+
+@app.callback(
+    Output('image-container', 'children'),
+    [Input('generate-btn', 'n_clicks')]
+)
+def update_output(n_clicks):
+    if n_clicks:
+        image = generate_image(generator, seed=np.random.randint(0, 10000))
+        image_src = convert_image_to_base64(image)
+        
+        return html.Img(
+            src=image_src,
+            style={
+                'width': '100%',
+                'maxWidth': '500px',
+                'borderRadius': '10px',
+                'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)',
+                'marginTop': '20px'
+            }
+        )
+    return None
+>>>>>>> e13f104d4d640054a2f95ceea8959359fa9b47e4
 
 if __name__ == '__main__':
     app.run_server(debug=True)
