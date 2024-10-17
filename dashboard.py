@@ -68,6 +68,17 @@ app = Dash()
 
 # Generator Builder (You need to implement your generator structure here)
 def generator_builder():
+<<<<<<< HEAD
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(100,)),  # Specify input shape here
+        tf.keras.layers.Dense(256),
+        tf.keras.layers.LeakyReLU(),
+        tf.keras.layers.Dense(512),
+        tf.keras.layers.LeakyReLU(),
+        tf.keras.layers.Dense(28 * 28 * 3, activation='tanh'),
+        tf.keras.layers.Reshape((28, 28, 3))
+    ])
+=======
     # Example generator model, modify as per your architecture
     noise = layers.Input(shape=(100,))
     x = layers.Dense(512 * 4 * 4)(noise)
@@ -99,7 +110,9 @@ def generator_builder():
 
     model = tf.keras.Model(inputs=noise, outputs=output_image)
     
+>>>>>>> d4a30785f214853f3f0aa9d227bc96d8462e07b2
     return model
+
 
 # Load the generator model
 generator, latest_epoch = load_generator(generator_builder)
