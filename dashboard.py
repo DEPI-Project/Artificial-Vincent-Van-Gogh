@@ -7,6 +7,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 from keras import layers
+import numpy as np
 
 # Load the generator model
 def residual_block(input_tensor, filters, kernel_size=3, strides=1):
@@ -56,6 +57,16 @@ def convert_image_to_base64(image):
     buffer.seek(0)
     img_base64 = base64.b64encode(buffer.read()).decode()
     return f"data:image/png;base64,{img_base64}"
+
+# New function to decode the uploaded image into a numpy array
+def decode_image(contents):
+    # Decode the base64 image
+    _, content_string = contents.split(',')
+    image_data = base64.b64decode(content_string)
+    image = Image.open(BytesIO(image_data))
+    # Convert the image to a numpy array (3D list)
+    image_array = np.array(image)
+    return image_array
 
 app = Dash()
 
@@ -179,6 +190,8 @@ app.layout = html.Div(id='page-content', style={'padding': '10px', 'height': '10
 )
 def display_uploaded_image(contents):
     if contents:
+        # Call the decode_image function to convert the uploaded image to a numpy array
+        image_array = decode_image(contents)
         return html.Img(src=contents, style={'width': '150px', 'border': '2px solid #343a40', 'borderRadius': '8px'}), False
     return None, True
 
