@@ -9,6 +9,12 @@ from PIL import Image
 from keras import layers
 import numpy as np
 
+
+def Neural_style_tranfer(img,stylzed_img):
+    pass
+    #return transferd_img
+    
+
 # Load the generator model
 def residual_block(input_tensor, filters, kernel_size=3, strides=1):
     x = layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(input_tensor)
@@ -71,12 +77,13 @@ def decode_image(contents):
 app = Dash()
 
 def generator_builder():
-    noise = layers.Input(shape=(100,))
+    noise = layers.Input(shape=(128,))
     x = layers.Dense(512 * 4 * 4)(noise)
     x = layers.Reshape((4, 4, 512))(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
+    # Add residual blocks here
     x = residual_block(x, filters=512)
     x = residual_block(x, filters=512)
 
@@ -84,6 +91,7 @@ def generator_builder():
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
+    # More residual blocks after upsampling
     x = residual_block(x, filters=256)
 
     x = layers.Conv2DTranspose(128, kernel_size=5, strides=2, padding='same')(x)
@@ -94,6 +102,7 @@ def generator_builder():
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
+    # Output layer: ensure output size is 64x64
     output_image = layers.Conv2DTranspose(3, kernel_size=5, strides=2, padding='same', activation='tanh')(x)
 
     model = tf.keras.Model(inputs=noise, outputs=output_image)
