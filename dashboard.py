@@ -6,6 +6,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 from keras import layers
+import numpy as np
 
 # Load the generator model
 def residual_block(input_tensor, filters, kernel_size=3, strides=1):
@@ -20,10 +21,11 @@ def residual_block(input_tensor, filters, kernel_size=3, strides=1):
     x = layers.Add()([x, input_tensor])
     x = layers.ReLU()(x)
     return x
+
 def load_generator(generator_builder, checkpoint_dir='checkpoints'):
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
-        return None, 0  # No checkpoints, start from epoch 0
+        return None, 0
 
     checkpoint_files = os.listdir(checkpoint_dir)
     generator_files = [f for f in checkpoint_files if f.startswith('generator_epoch_') and f.endswith('.h5')]
@@ -41,41 +43,33 @@ def load_generator(generator_builder, checkpoint_dir='checkpoints'):
 
     return generator, latest_epoch
 
-# Function to generate images using the generator model
-def generate_image(generator):
-    # Generate a random noise vector
-    noise = tf.random.normal([1, 100])  # Adjust the noise dimension as per your model's input
+
+
+def generate_image(generator, seed=None):
+    if seed is not None:
+        tf.random.set_seed(seed)
+    noise = tf.random.normal([1, 100])
     generated_image = generator(noise, training=False)
-    
-    # Post-process the generated image (e.g., scale back to [0, 255])
-    generated_image = (generated_image * 127.5 + 127.5).numpy().astype('uint8')  # Example post-processing
-    
+    generated_image = (generated_image * 127.5 + 127.5).numpy().astype('uint8')
     return generated_image
 
-# Convert the generated image to base64 format to display in Dash
 def convert_image_to_base64(image):
-    # Convert the image (NumPy array) to an image file object
-    img = Image.fromarray(image[0])  # Assuming image is in [batch_size, width, height, channels] format
+    img = Image.fromarray(image[0])
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
     img_base64 = base64.b64encode(buffer.read()).decode()
-    
     return f"data:image/png;base64,{img_base64}"
 
-# Create the Dash app
-app = Dash()
+app = Dash(__name__)
 
-# Generator Builder (You need to implement your generator structure here)
 def generator_builder():
-    # Example generator model, modify as per your architecture
     noise = layers.Input(shape=(100,))
     x = layers.Dense(512 * 4 * 4)(noise)
     x = layers.Reshape((4, 4, 512))(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    # Add residual blocks here
     x = residual_block(x, filters=512)
     x = residual_block(x, filters=512)
 
@@ -83,7 +77,6 @@ def generator_builder():
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    # More residual blocks after upsampling
     x = residual_block(x, filters=256)
 
     x = layers.Conv2DTranspose(128, kernel_size=5, strides=2, padding='same')(x)
@@ -94,82 +87,92 @@ def generator_builder():
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    # Output layer: ensure output size is 64x64
     output_image = layers.Conv2DTranspose(3, kernel_size=5, strides=2, padding='same', activation='tanh')(x)
-
     model = tf.keras.Model(inputs=noise, outputs=output_image)
-    
     return model
 
-# Load the generator model
 generator, latest_epoch = load_generator(generator_builder)
 
-# Design the layout of the app
-app.layout = html.Div(id='page-content', style={
-    'padding': '10px',
-    'height': '100vh',
-    'display': 'flex',
-    'flexDirection': 'column',
-    'justifyContent': 'space-evenly',
-    'alignItems': 'center',
-    'backgroundColor': '#f8f9fa'
-}, children=[
-    # Title
-    html.H1("Artificial Vincent Van Gogh", id='title', style={
-        'textAlign': 'center',
-        'fontFamily': 'Arial',
-        'color': '#343a40',
-        'fontSize': '28px',
-        'marginBottom': '10px'
-    }),
-
-    # Place to display the generated image
-    html.Div(id='output-images', children=[
-        html.Div(id='image-container', children=[], style={'textAlign': 'center'})
-    ], style={
+app.layout = html.Div(
+    style={
         'display': 'flex',
-        'justifyContent': 'space-around',
+        'flexDirection': 'column',
+        'justifyContent': 'center',
         'alignItems': 'center',
-        'width': '100%'
-    }),
+        'height': '100vh',
+        'background': '#f0f4f8',
+        'padding': '20px',
+        'textAlign': 'center'
+    },
+    children=[
+        html.H1(
+            "AI Art Generator",
+            style={
+                'color': '#2c3e50',
+                'fontFamily': 'Arial, sans-serif',
+                'fontSize': '36px',
+                'marginBottom': '20px'
+            }
+        ),
+        html.Div(
+            id='output-images',
+            children=[
+                html.Div(
+                    id='image-container',
+                    style={'marginBottom': '20px'}
+                )
+            ],
+            style={
+                'display': 'flex',
+                'justifyContent': 'center',
+                'alignItems': 'center',
+                'width': '100%'
+            }
+        ),
+        html.Button(
+            '🎨 Generate Image',
+            id='generate-btn',
+            style={
+                'fontSize': '18px',
+                'padding': '12px 24px',
+                'border': 'none',
+                'borderRadius': '30px',
+                'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
+                'color': 'white',
+                'cursor': 'pointer',
+                'transition': '0.3s ease',
+                'boxShadow': '0 4px 12px rgba(0, 0, 0, 0.15)',
+            },
+            n_clicks=0
+        ),
+        dcc.Loading(
+            id="loading-icon",
+            type="circle",
+            children=html.Div(id="loading-output")
+        )
+    ]
+)
 
-    # Generate button
-    html.Button('🎨 Generate Image', id='generate-btn', style={
-        'fontSize': '16px',
-        'padding': '10px 20px',
-        'border': 'none',
-        'borderRadius': '20px',
-        'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
-        'color': 'white',
-        'cursor': 'pointer',
-        'transition': '0.3s',
-        'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)'
-    })
-])
-
-# Callback to generate and display image on button click
 @app.callback(
     Output('image-container', 'children'),
-    [Input('generate-btn', 'n_clicks')],
-    [State('image-container', 'children')]  # We don't need any state, but we can use this to track updates
+    [Input('generate-btn', 'n_clicks')]
 )
-def update_output(n_clicks, children):
+def update_output(n_clicks):
     if n_clicks:
-        # Generate the image
-        image = generate_image(generator)
-        # Convert the image to base64
+        image = generate_image(generator, seed=np.random.randint(0, 10000))
         image_src = convert_image_to_base64(image)
         
-        # Return the new image element
-        return html.Img(src=image_src, style={
-            'width': '90%',
-            'maxWidth': '400px',
-            'padding': '5px',
-            'border': '2px solid #343a40',
-            'borderRadius': '8px'
-        })
-    return children
+        return html.Img(
+            src=image_src,
+            style={
+                'width': '100%',
+                'maxWidth': '500px',
+                'borderRadius': '10px',
+                'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)',
+                'marginTop': '20px'
+            }
+        )
+    return None
 
-# Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
