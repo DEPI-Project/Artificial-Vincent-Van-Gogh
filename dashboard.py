@@ -1,14 +1,8 @@
-
-
-
-
-
-
-You said:
 import os
 import tensorflow as tf
 from dash import Dash, html, dcc
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 import base64
 from io import BytesIO
 from PIL import Image
@@ -198,34 +192,12 @@ def toggle_mode(n_clicks, current_mode):
         new_mode = 'dark'
         page_style = {'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center', 'backgroundColor': '#343a40', 'color': 'white'}
         title_style = {'textAlign': 'center', 'fontFamily': 'Arial', 'fontSize': '28px', 'marginBottom': '10px', 'color': 'white'}
-        button_style = {'fontSize': '16px', 'padding': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer', 'transition': '0.3s', 'position': 'absolute', 'top': '20px', 'right': '20px', 'backgroundColor': '#f8f9fa', 'color': 'black'}
-        button_text = '🌜 Dark Mode'
-    else:
-        new_mode = 'light'
-        page_style = {'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center', 'backgroundColor': '#f8f9fa', 'color': 'black'}
-        title_style = {'textAlign': 'center', 'fontFamily': 'Arial', 'fontSize': '28px', 'marginBottom': '10px', 'color': 'black'}
-        button_style = {'fontSize': '16px', 'padding': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer', 'transition': '0.3s', 'position': 'absolute', 'top': '20px', 'right': '20px', 'backgroundColor':  '#343a40', 'color': 'white'}
-        button_text = '🌞 Light Mode'
+        button_style = {'fontSize': '16px', 'padding': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer', 'transition': '0.3s', 'position': 'absolute', 'top': '20px', 'right': '20px', 'color': 'white'}
+        return page_style, title_style, '🌙 Dark Mode', button_style, new_mode
 
-    return page_style, title_style, button_text, button_style, new_mode
+    return {'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center'}, {'textAlign': 'center', 'fontFamily': 'Arial', 'fontSize': '28px', 'marginBottom': '10px'}, '🌞 Light Mode', {'fontSize': '16px', 'padding': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer', 'transition': '0.3s', 'position': 'absolute', 'top': '20px', 'right': '20px', 'backgroundColor': 'none'}, current_mode
 
-# Callback to handle image generation
-@app.callback(
-    [Output('image-container', 'children'), Output('confirm-dialog', 'displayed')],
-    [Input('generate-btn', 'n_clicks')],
-    [State('upload-image', 'contents')]
-)
-def generate_image_callback(n_clicks, uploaded_image):
-    if n_clicks is None:
-        raise dash.exceptions.PreventUpdate
-    
-    if uploaded_image is None:
-        return None, True  # Show confirmation dialog if no image is uploaded
-    
-    generated_image = generate_image(generator)
-    img_base64 = convert_image_to_base64(generated_image)
 
-    return [html.Img(src=img_base64, style={'width': '150px', 'border': '2px solid #343a40', 'borderRadius': '8px'})], False
-
+# Run the app
 if __name__ == '__main__':
-    app.run_server(debug=True)  
+    app.run(debug=True)
