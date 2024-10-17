@@ -20,6 +20,7 @@ def residual_block(input_tensor, filters, kernel_size=3, strides=1):
     x = layers.Add()([x, input_tensor])
     x = layers.ReLU()(x)
     return x
+
 def load_generator(generator_builder, checkpoint_dir='checkpoints'):
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -41,52 +42,29 @@ def load_generator(generator_builder, checkpoint_dir='checkpoints'):
 
     return generator, latest_epoch
 
-# Function to generate images using the generator model
 def generate_image(generator):
-    # Generate a random noise vector
-    noise = tf.random.normal([1, 100])  # Adjust the noise dimension as per your model's input
+    noise = tf.random.normal([1, 100])
     generated_image = generator(noise, training=False)
-    
-    # Post-process the generated image (e.g., scale back to [0, 255])
-    generated_image = (generated_image * 127.5 + 127.5).numpy().astype('uint8')  # Example post-processing
-    
+    generated_image = (generated_image * 127.5 + 127.5).numpy().astype('uint8')
     return generated_image
 
-# Convert the generated image to base64 format to display in Dash
 def convert_image_to_base64(image):
-    # Convert the image (NumPy array) to an image file object
-    img = Image.fromarray(image[0])  # Assuming image is in [batch_size, width, height, channels] format
+    img = Image.fromarray(image[0])
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
     img_base64 = base64.b64encode(buffer.read()).decode()
-    
     return f"data:image/png;base64,{img_base64}"
 
-# Create the Dash app
 app = Dash()
 
-# Generator Builder (You need to implement your generator structure here)
 def generator_builder():
-<<<<<<< HEAD
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(100,)),  # Specify input shape here
-        tf.keras.layers.Dense(256),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Dense(512),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Dense(28 * 28 * 3, activation='tanh'),
-        tf.keras.layers.Reshape((28, 28, 3))
-    ])
-=======
-    # Example generator model, modify as per your architecture
     noise = layers.Input(shape=(100,))
     x = layers.Dense(512 * 4 * 4)(noise)
     x = layers.Reshape((4, 4, 512))(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    # Add residual blocks here
     x = residual_block(x, filters=512)
     x = residual_block(x, filters=512)
 
@@ -94,7 +72,6 @@ def generator_builder():
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    # More residual blocks after upsampling
     x = residual_block(x, filters=256)
 
     x = layers.Conv2DTranspose(128, kernel_size=5, strides=2, padding='same')(x)
@@ -105,84 +82,143 @@ def generator_builder():
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    # Output layer: ensure output size is 64x64
     output_image = layers.Conv2DTranspose(3, kernel_size=5, strides=2, padding='same', activation='tanh')(x)
 
     model = tf.keras.Model(inputs=noise, outputs=output_image)
-    
->>>>>>> d4a30785f214853f3f0aa9d227bc96d8462e07b2
     return model
 
-
-# Load the generator model
 generator, latest_epoch = load_generator(generator_builder)
 
 # Design the layout of the app
-app.layout = html.Div(id='page-content', style={
-    'padding': '10px',
-    'height': '100vh',
-    'display': 'flex',
-    'flexDirection': 'column',
-    'justifyContent': 'space-evenly',
-    'alignItems': 'center',
-    'backgroundColor': '#f8f9fa'
-}, children=[
+app.layout = html.Div(id='page-content', style={'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center'}, children=[
     # Title
-    html.H1("Artificial Vincent Van Gogh", id='title', style={
-        'textAlign': 'center',
-        'fontFamily': 'Arial',
-        'color': '#343a40',
-        'fontSize': '28px',
-        'marginBottom': '10px'
-    }),
+    html.H1("Artificial Vincent Van Gogh", id='title', style={'textAlign': 'center', 'fontFamily': 'Arial', 'fontSize': '28px', 'marginBottom': '10px'}),
 
-    # Place to display the generated image
+    # Toggle Dark/Light mode button
+    html.Div([
+        html.Button('🌞 Light Mode', id='toggle-mode', n_clicks=0, style={
+            'fontSize': '16px',
+            'padding': '10px',
+            'border': 'none',
+            'borderRadius': '8px',
+            'cursor': 'pointer',
+            'transition': '0.3s',
+            'position': 'absolute',
+            'top': '20px',
+            'right': '20px'
+        })
+    ]),
+
+    # Upload image button
+    dcc.Upload(
+        id='upload-image',
+        children=html.Button('Upload Image', style={
+            'fontSize': '16px',
+            'padding': '10px 20px',
+            'border': 'none',
+            'borderRadius': '20px',
+            'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
+            'color': 'white',
+            'cursor': 'pointer',
+            'transition': '0.3s',
+            'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)',
+            'marginBottom': '20px'
+        }),
+        multiple=False
+    ),
+
+    # Display the uploaded image
+    html.Div(id='uploaded-image-container', style={'textAlign': 'center', 'marginBottom': '20px'}),
+
+    # Display the generated image
     html.Div(id='output-images', children=[
         html.Div(id='image-container', children=[], style={'textAlign': 'center'})
-    ], style={
-        'display': 'flex',
-        'justifyContent': 'space-around',
-        'alignItems': 'center',
-        'width': '100%'
-    }),
+    ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'center', 'width': '100%'}),
 
-    # Generate button
-    html.Button('🎨 Generate Image', id='generate-btn', style={
-        'fontSize': '16px',
-        'padding': '10px 20px',
-        'border': 'none',
-        'borderRadius': '20px',
-        'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
-        'color': 'white',
-        'cursor': 'pointer',
-        'transition': '0.3s',
-        'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)'
-    })
+    # Section with description and generate button
+    html.Div([
+        # Description of the project
+        html.Div([
+            html.H2("Project Overview", style={'fontFamily': 'Arial', 'fontSize': '20px', 'marginBottom': '10px'}),
+            html.P("This project uses a Generative Adversarial Network (GAN) to generate artwork in the style of Vincent van Gogh. The AI model learns from existing artworks and creates unique, high-quality images, blending deep learning and creativity.",
+                   style={'fontFamily': 'Arial', 'fontSize': '16px', 'color': '#6c757d', 'maxWidth': '400px', 'lineHeight': '1.5'})
+        ], style={'display': 'inline-block', 'textAlign': 'left', 'verticalAlign': 'top', 'marginRight': '20px'}),
+
+        # Generate button (disabled initially)
+        html.Div([
+            html.Button('🎨 Generate Image', id='generate-btn', disabled=True, style={
+                'fontSize': '16px',
+                'padding': '10px 20px',
+                'border': 'none',
+                'borderRadius': '20px',
+                'background': 'linear-gradient(135deg, #6a11cb, #2575fc)',
+                'color': 'white',
+                'cursor': 'pointer',
+                'transition': '0.3s',
+                'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.2)'
+            })
+        ], style={'display': 'inline-block', 'verticalAlign': 'top'})
+    ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'width': '100%', 'padding': '20px 0'}),
+    
+    # Store for dark/light mode
+    dcc.Store(id='mode', data='light'),
+
+    # Confirmation dialog for generating image without uploading
+    dcc.ConfirmDialog(
+        id='confirm-dialog',
+        message="Please upload an image first before generating.",
+        displayed=False
+    )
 ])
 
-# Callback to generate and display image on button click
+# Callback to handle image upload and enable "Generate Image" button
 @app.callback(
-    Output('image-container', 'children'),
-    [Input('generate-btn', 'n_clicks')],
-    [State('image-container', 'children')]  # We don't need any state, but we can use this to track updates
+    [Output('uploaded-image-container', 'children'), Output('generate-btn', 'disabled')],
+    [Input('upload-image', 'contents')]
 )
-def update_output(n_clicks, children):
-    if n_clicks:
-        # Generate the image
-        image = generate_image(generator)
-        # Convert the image to base64
-        image_src = convert_image_to_base64(image)
-        
-        # Return the new image element
-        return html.Img(src=image_src, style={
-            'width': '90%',
-            'maxWidth': '400px',
-            'padding': '5px',
-            'border': '2px solid #343a40',
-            'borderRadius': '8px'
-        })
-    return children
+def display_uploaded_image(contents):
+    if contents:
+        return html.Img(src=contents, style={'width': '150px', 'border': '2px solid #343a40', 'borderRadius': '8px'}), False
+    return None, True
 
-# Run the app
+@app.callback(
+    [Output('page-content', 'style'), Output('title', 'style'), Output('toggle-mode', 'children'), Output('toggle-mode', 'style'), Output('mode', 'data')],
+    [Input('toggle-mode', 'n_clicks')],
+    [State('mode', 'data')]
+)
+def toggle_mode(n_clicks, current_mode):
+    if current_mode == 'light':
+        new_mode = 'dark'
+        page_style = {'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center', 'backgroundColor': '#343a40', 'color': 'white'}
+        title_style = {'textAlign': 'center', 'fontFamily': 'Arial', 'fontSize': '28px', 'marginBottom': '10px', 'color': 'white'}
+        button_style = {'fontSize': '16px', 'padding': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer', 'transition': '0.3s', 'position': 'absolute', 'top': '20px', 'right': '20px', 'backgroundColor': '#f8f9fa', 'color': 'black'}
+        button_text = '🌜 Dark Mode'
+    else:
+        new_mode = 'light'
+        page_style = {'padding': '10px', 'height': '100vh', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-evenly', 'alignItems': 'center', 'backgroundColor': '#f8f9fa', 'color': 'black'}
+        title_style = {'textAlign': 'center', 'fontFamily': 'Arial', 'fontSize': '28px', 'marginBottom': '10px', 'color': 'black'}
+        button_style = {'fontSize': '16px', 'padding': '10px', 'border': 'none', 'borderRadius': '8px', 'cursor': 'pointer', 'transition': '0.3s', 'position': 'absolute', 'top': '20px', 'right': '20px', 'backgroundColor':  '#343a40', 'color': 'white'}
+        button_text = '🌞 Light Mode'
+
+    return page_style, title_style, button_text, button_style, new_mode
+
+# Callback to handle image generation
+@app.callback(
+    [Output('image-container', 'children'), Output('confirm-dialog', 'displayed')],
+    [Input('generate-btn', 'n_clicks')],
+    [State('upload-image', 'contents')]
+)
+def generate_image_callback(n_clicks, uploaded_image):
+    if n_clicks is None:
+        raise dash.exceptions.PreventUpdate
+    
+    if uploaded_image is None:
+        return None, True  # Show confirmation dialog if no image is uploaded
+    
+    generated_image = generate_image(generator)
+    img_base64 = convert_image_to_base64(generated_image)
+
+    return [html.Img(src=img_base64, style={'width': '150px', 'border': '2px solid #343a40', 'borderRadius': '8px'})], False
+
 if __name__ == '__main__':
     app.run_server(debug=True)
