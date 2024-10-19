@@ -9,6 +9,8 @@ from PIL import Image
 from keras import layers
 import numpy as np
 
+def process(img):
+    pass
 def Neural_style_tranfer(content_img, style_img):
     pass
     # return transferred_img
