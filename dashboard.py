@@ -8,11 +8,21 @@ from io import BytesIO
 from PIL import Image
 from keras import layers
 import numpy as np
+import tensorflow_hub as hub
+
 
 def process(img):
-    pass
+    img = tf.image.decode_image(img, channels=3)
+    img = tf.image.convert_image_dtype(img, tf.float32)
+    img = img[tf.newaxis, :]
+    return img
+
 def Neural_style_tranfer(content_img, style_img):
-    pass
+    model = hub.load('https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2')
+    content_img = process(content_img)
+    style_img = process(style_img)
+    result = model(tf.constant(content_img), tf.constant(style_img))[0]
+    return result
     # return transferred_img
 
 # Load the generator model
