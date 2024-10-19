@@ -10,30 +10,26 @@ from keras import layers
 import numpy as np
 import tensorflow_hub as hub
 
-
 def process(img):
-    img = tf.image.decode_image(img, channels=3)
-    img = tf.image.convert_image_dtype(img, tf.float32)
-    img = img[tf.newaxis, :]
+    # Ensure the image is a float32 tensor and normalize it to [0, 1]
+    img = tf.convert_to_tensor(img, dtype=tf.float32) / 255.0
+    img = img[tf.newaxis, :]  # Add batch dimension
     return img
 
 def Neural_style_tranfer(content_img, style_img):
-    model = hub.load('https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2')
+    model = hub.load('https://kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/TensorFlow1/variations/256/versions/1')
     content_img = process(content_img)
     style_img = process(style_img)
     result = model(tf.constant(content_img), tf.constant(style_img))[0]
     return result
-    # return transferred_img
 
 # Load the generator model
 def residual_block(input_tensor, filters, kernel_size=3, strides=1):
     x = layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(input_tensor)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-
     x = layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(x)
     x = layers.BatchNormalization()(x)
-
     x = layers.Add()([x, input_tensor])
     x = layers.ReLU()(x)
     return x
@@ -91,21 +87,16 @@ def generator_builder():
 
     x = residual_block(x, filters=512)
     x = residual_block(x, filters=512)
-
     x = layers.Conv2DTranspose(256, kernel_size=5, strides=2, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-
     x = residual_block(x, filters=256)
-
     x = layers.Conv2DTranspose(128, kernel_size=5, strides=2, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-
     x = layers.Conv2DTranspose(64, kernel_size=5, strides=2, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-
     output_image = layers.Conv2DTranspose(3, kernel_size=5, strides=2, padding='same', activation='tanh')(x)
 
     model = tf.keras.Model(inputs=noise, outputs=output_image)
@@ -130,7 +121,6 @@ app.layout = html.Div([
             }),
             multiple=False
         ),
-
         html.Button(
             '🎨 Generate Style Image', 
             id='generate-style-btn', 
@@ -145,7 +135,6 @@ app.layout = html.Div([
                 'cursor': 'pointer'
             }
         ),
-
         html.Button(
             '🖌️ Apply Style Transfer', 
             id='apply-style-btn', 
@@ -168,7 +157,8 @@ app.layout = html.Div([
     html.Div(id='styled-image-output', style={'textAlign': 'center'}),
     
     dcc.Store(id='content-image-data'),
-    dcc.Store(id='style-image-data')
+    dcc.Store(id='style-image-data'),
+    dcc.Store(id='style-transfer-applied', data=False)
 ])
 
 @app.callback(
@@ -201,10 +191,11 @@ def generate_style_image(n_clicks):
     Input('style-image-data', 'data')
 )
 def enable_style_transfer(content_image_data, style_image_data):
-    return not (content_image_data and style_image_data)
+    return content_image_data is None or style_image_data is None
 
 @app.callback(
     Output('styled-image-output', 'children'),
+    Output('style-transfer-applied', 'data'),
     Input('apply-style-btn', 'n_clicks'),
     State('content-image-data', 'data'),
     State('style-image-data', 'data')
@@ -216,9 +207,40 @@ def apply_style_transfer(n_clicks, content_image_data, style_image_data):
     content_img = np.array(content_image_data)
     style_img = np.array(style_image_data)
 
+    print("Content Image Type:", type(content_img), "Content Image Shape:", content_img.shape)
+    print("Style Image Type:", type(style_img), "Style Image Shape:", style_img.shape)
+
+    # Apply neural style transfer
     styled_image = Neural_style_tranfer(content_img, style_img)
-    img_base64 = convert_image_to_base64(styled_image)
-    return html.Img(src=img_base64, style={'width': '300px'})
+
+    # Convert the styled image tensor to a NumPy array
+    styled_image_np = styled_image.numpy()  # Convert to NumPy array
+
+    # Remove the batch dimension if present
+    if styled_image_np.ndim == 4:  # If shape is (1, height, width, channels)
+        styled_image_np = styled_image_np.squeeze(axis=0)  # Remove the first dimension
+
+    # Ensure the image is in uint8 format
+    styled_image_np = (styled_image_np * 255).astype(np.uint8)  # Scale and convert to uint8
+
+    img_base64 = convert_image_to_base64(styled_image_np)
+    return html.Img(src=img_base64, style={'width': '300px'}), True
+
+
+
+
+@app.callback(
+    Output('uploaded-content-image', 'style'),
+    Output('generated-style-image', 'style'),
+    Input('style-transfer-applied', 'data')
+)
+def hide_images_after_transfer(applied):
+    if applied:
+        # Hide the images when style transfer is applied
+        return {'display': 'none'}, {'display': 'none'}
+    else:
+        # Show the images when style transfer is not yet applied
+        return {'textAlign': 'center'}, {'textAlign': 'center'}
 
 # Run the app
 if __name__ == '__main__':
