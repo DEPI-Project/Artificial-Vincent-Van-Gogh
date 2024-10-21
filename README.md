@@ -1,6 +1,8 @@
 
 # Artificial Vincent Van Gogh - GANs & Neural Style Transfer
 
+![pikaso_texttoimage_van-gogh-as-robot (5)](https://github.com/user-attachments/assets/89a8acde-e55f-4844-ad81-b6f05e21327b)
+
 ## Overview
 This project combines a Deep Convolutional Generative Adversarial Network (DCGAN) with neural style transfer to create stylized images inspired by Vincent van Gogh's iconic style. By leveraging the power of GANs, our model analyzes and learns from a curated dataset of Van Gogh's paintings. It can then generate new, unique images that embody Van Gogh’s post-impressionist style, including bold colors, expressive brushstrokes, and emotive compositions.
 
