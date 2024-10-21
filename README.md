@@ -56,7 +56,23 @@ The `GANS.ipynb` notebook contains the training code for the DCGAN model. Follow
     - Training the DCGAN using a dataset of Van Gogh's artworks.
     - Saving model checkpoints during training.
 
-3. Once trained, the model weights will be saved in the `checkpoints/` directory, which can be used by the Dash application for generating style images.
+## Discriminator and Generator Training Process
+
+### Discriminator Training:
+- Train on a batch of real images (label: 1).
+- Train on pre-existing fake images (label: 0).
+
+### Generator Training:
+- Generate new images and train with labels as real (1.0), aiming to fool the Discriminator.
+
+### Evaluation & Checkpointing:
+- **Save Generated Images**: Save sample images at regular intervals.
+- **Model Checkpoints**: Save model weights every 2000 epochs to allow resuming training.
+- **Monitor Losses**: Track Discriminator and Generator losses throughout the process.
+- **Resuming Training**: Every time we start training the model, it will continue from the last checkpoint epoch instead of starting from scratch.
+
+### Training Duration:
+- Train for 6000 epochs with a batch size of 64, allowing the model to improve over time.
 
 ## Running the Dash Application
 The `dashboard.py` file contains the Dash application for generating style images and applying neural style transfer.
@@ -66,8 +82,6 @@ Run the application:
 ```bash
 python dashboard.py
 ```
-
-Access the application in your web browser at `http://127.0.0.1:8050/`.
 
 ## Usage
 
@@ -80,7 +94,7 @@ Access the application in your web browser at `http://127.0.0.1:8050/`.
 
 - **Van Gogh Museum, Amsterdam**: Provided high-resolution images of their collection.
 - **Google Arts & Culture**: Access to digital scans of Van Gogh's artworks from various museums.
-- **kaggle**: "The Complete Paintings" by Ingo F. Walther and Rainer Metzger was used for additional reference.
+- **Books**: "The Complete Paintings" by Ingo F. Walther and Rainer Metzger was used for additional reference.
 
 ## Future Work
 - **Model Improvements**: Explore the use of larger models or different architectures for generating higher-resolution images.
@@ -92,3 +106,5 @@ Access the application in your web browser at `http://127.0.0.1:8050/`.
 - **[TensorFlow Documentation](https://www.tensorflow.org/)**: https://www.tensorflow.org/
 - **[TensorFlow Hub Style Transfer Model](https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2)**: https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2
 - **[Dash Documentation](https://dash.plotly.com/)**: https://dash.plotly.com/
+
+
