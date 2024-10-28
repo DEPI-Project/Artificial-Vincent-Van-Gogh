@@ -1,0 +1,3 @@
+Module: https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2
+Download Time: 2024-10-28 21:41:37.810774
+Downloader Hostname: Youssef-Husseiny (PID:14400)

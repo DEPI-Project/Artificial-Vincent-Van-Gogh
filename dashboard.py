@@ -9,19 +9,39 @@ from PIL import Image
 from keras import layers
 import numpy as np
 import tensorflow_hub as hub
+import cv2
+import tensorflow_hub as hub
+import shutil
+import sys
 
-def process(img):
-    # Ensure the image is a float32 tensor and normalize it to [0, 1]
-    img = tf.convert_to_tensor(img, dtype=tf.float32) / 255.0
-    img = img[tf.newaxis, :]  # Add batch dimension
-    return img
+sys.path.append(r"D:\My Laptop\Me\Programming\Machine Learning\Courses\Microsoft Machine Learning Engineer - DEPI\Final Project\Artificial-Vincent-Van-Gogh")
+from output import neural_style_transfer
 
-def Neural_style_tranfer(content_img, style_img):
-    model = hub.load('https://kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/TensorFlow1/variations/256/versions/1')
-    content_img = process(content_img)
-    style_img = process(style_img)
-    result = model(tf.constant(content_img), tf.constant(style_img))[0]
-    return result
+
+# def load_image(img_path):
+#     img = tf.io.read_file(img_path)
+#     img = tf.image.decode_image(img, channels=3)
+#     img = tf.image.convert_image_dtype(img, tf.float32)
+#     img = img[tf.newaxis, :]
+#     return img
+
+# def process(img):
+#     # Ensure the image is a float32 tensor and normalize it to [0, 1]
+#     cv2.imwrite('outputs/output.png',img)
+#     img = load_image('outputs/output.png')
+#     return img
+
+# def Neural_style_tranfer(content_img, style_img):
+#     model_url = "https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2"
+#     try:
+#         model = hub.load(model_url)
+#         print("Model loaded successfully.")
+#     except ValueError as e:
+#         print("Failed to load model:", e)
+#     content_img = process(content_img)
+#     style_img = process(style_img)
+#     result = model(tf.constant(content_img), tf.constant(style_img))[0]
+#     return result
 
 # Load the generator model
 def residual_block(input_tensor, filters, kernel_size=3, strides=1):
@@ -204,14 +224,17 @@ def apply_style_transfer(n_clicks, content_image_data, style_image_data):
     if n_clicks is None:
         raise PreventUpdate
 
-    content_img = np.array(content_image_data)
-    style_img = np.array(style_image_data)
+    content_img = np.array(content_image_data).astype(np.float32) / 255.0
+    style_img = np.array(style_image_data).astype(np.float32) / 255.0
 
     print("Content Image Type:", type(content_img), "Content Image Shape:", content_img.shape)
     print("Style Image Type:", type(style_img), "Style Image Shape:", style_img.shape)
 
     # Apply neural style transfer
-    styled_image = Neural_style_tranfer(content_img, style_img)
+    cache_dir = './tfhub_modules_cache'
+    if os.path.exists(cache_dir):
+        shutil.rmtree(cache_dir)
+    styled_image = neural_style_transfer(content_img, style_img)
 
     # Convert the styled image tensor to a NumPy array
     styled_image_np = styled_image.numpy()  # Convert to NumPy array
